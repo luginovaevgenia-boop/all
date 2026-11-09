@@ -154,6 +154,14 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
 .ovar.out .vn{color:var(--muted);text-decoration:line-through}
 .preview{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:var(--bg)}
 .preview img{width:100%;max-height:340px;object-fit:contain;border-radius:10px;margin-bottom:10px}
+.cat{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600}
+a.wa{color:var(--accent);font-weight:600;text-decoration:none;font-size:13px}
+a.wa:hover{text-decoration:underline}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:20px;padding:6px 13px;font-size:14px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.rcard{padding:12px 14px;margin-bottom:12px;font-size:14px}
+.rcard .rrow{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:4px 0}
 @media(prefers-reduced-motion:no-preference){.btn,.opt{transition:background .15s,border-color .15s}}
 </style>
 
@@ -190,12 +198,14 @@ var IMG={c122:'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAkGBwgHBg
 var now=Date.now(), H=3600e3, D=24*H;
 function V(l,c,r){return {l:l,cny:c,rub:r,out:false};}
 var products=[
- {id:1,art:'122',name:'Кольцо с камнем',photo:IMG.c122,full:IMG.orig,stop:now+2*D+5*H,
+ {id:1,art:'122',cat:'Муассаниты',name:'Кольца, набор №1',photo:IMG.c122,full:IMG.orig,stop:now+2*D+5*H,
   v:[V('0,5 карата',107,1500),V('1 карат',125,1750),V('2 карата',161,2255),V('3 карата',192,2690)]},
- {id:2,art:'115',name:'Кольцо с камнем',photo:IMG.c115,full:IMG.orig,stop:now+D+4*H,
+ {id:2,art:'115',cat:'Муассаниты',name:'Кольца, набор №2',photo:IMG.c115,full:IMG.orig,stop:now+D+4*H,
   v:[V('0,5 карата',107,1500),V('1 карат',121,1695),V('2 карата',165,2310),V('3 карата',199,2790),V('5 карат',255,3570)]}
 ];
 var nextId=3;
+var CATS=['Муассаниты','Верхняя одежда','Детская одежда','Новогодние товары'];
+function seedPhone(i){return '7900'+('1000000'+(i*137+11)).slice(-7);}
 var orders=[], oid=1;
 function addOrder(who,phone,pid,vi,ring,qty,status,ageH){
   orders.push({id:oid++,who:who,phone:phone,pid:pid,vi:vi,ring:ring,qty:qty,status:status,issue:null,comment:'',at:now-(ageH||0)*H});
@@ -204,9 +214,14 @@ addOrder(profile.name,profile.phone,1,2,'17',1,2,70);
 addOrder(profile.name,profile.phone,2,1,'16',1,0,9);
 var people=['Марина С.','Ольга П.','Ирина В.','Светлана Т.','Наталья Г.','Юлия Р.','Елена Д.','Татьяна М.','Алина Ф.','Вера Н.','Лидия К.'];
 [[1,0,'16',1,0],[1,1,'17',1,2],[1,1,'15',1,1],[1,3,'18',1,0],[2,0,'16',2,0],[2,1,'17',1,0],[2,2,'18',1,1],[2,3,'16',1,0],[2,4,'17',1,0],[1,2,'19',1,2],[2,4,'16',1,0]]
- .forEach(function(s,i){addOrder(people[i],'7900'+('1000000'+(i*137+11)).slice(-7),s[0],s[1],s[2],s[3],s[4],2+i*3);});
+ .forEach(function(s,i){addOrder(people[i],seedPhone(i),s[0],s[1],s[2],s[3],s[4],2+i*3);});
 
-var role='U', tab='catalog', selected={}, fProd='all', fStatus='all', fQ='', sheet=null;
+var refunds=[], rid=1;
+function addRefund(o,amount,reason,vi,at){refunds.push({id:rid++,who:o.who,phone:o.phone,pid:o.pid,vi:vi===undefined?o.vi:vi,ring:o.ring,qty:o.qty,amount:amount,reason:reason,at:at||Date.now(),done:false});}
+addRefund({who:'Вера Н.',phone:seedPhone(9),pid:2,ring:'17',qty:1},3570,'Нет в наличии',4,now-5*H);
+addRefund({who:'Лидия К.',phone:seedPhone(10),pid:2,ring:'16',qty:1},1500,'Отмена участницей',0,now-30*H);
+refunds[1].done=true;
+var role='U', tab='catalog', selected={}, fProd='all', fStatus='all', fQ='', fCat='Все', sheet=null;
 var $=function(s){return document.querySelector(s);};
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function money(n){return n.toLocaleString('ru-RU')+' ₽';}
@@ -236,6 +251,23 @@ function toast(t){
   toast.t=setTimeout(function(){el.hidden=true;},3600);
 }
 function issueCount(){return orders.filter(function(o){return o.issue==='out';}).length;}
+function refundOpen(){return refunds.filter(function(r){return !r.done;}).length;}
+function waLink(phone,text){return 'https://wa.me/'+phone+(text?'?text='+encodeURIComponent(text):'');}
+function firstName(n){return String(n).split(' ')[0];}
+function stText(o){return o.issue==='out'?'нет в наличии':(o.issue==='wait'?'ждёт поступления':STATUSES[o.status].toLowerCase());}
+function msgFor(o){
+  var p=prod(o.pid),v=p.v[o.vi],what='арт. '+p.art+' ('+p.name+'), '+v.l+', р-р '+o.ring+' × '+o.qty+', '+money(oSum(o));
+  if(o.issue==='out') return 'Здравствуйте, '+firstName(o.who)+'! По заказу '+what+': этого варианта нет в наличии. Выберите в каталоге: заменить, подождать или отменить.';
+  if(o.status===0&&!isOpen(p)) return 'Здравствуйте, '+firstName(o.who)+'! Приём по арт. '+p.art+' закрыт. Ваш заказ: '+what+'. Можно оплачивать.';
+  return 'Здравствуйте, '+firstName(o.who)+'! Ваш заказ: '+what+'. Статус: '+stText(o)+'.';
+}
+function refundMsg(r){var p=prod(r.pid);return 'Здравствуйте, '+firstName(r.who)+'! Возвращаем '+money(r.amount)+' по заказу арт. '+p.art+' ('+r.reason.toLowerCase()+'). Пришлите, пожалуйста, реквизиты для перевода.';}
+function refundCard(){
+  var mine=refunds.filter(function(r){return r.phone===profile.phone;});
+  if(!mine.length) return '';
+  return '<div class="card rcard"><div class="meta" style="margin-bottom:4px">Возвраты</div>'+mine.map(function(r){var p=prod(r.pid);
+    return '<div class="rrow"><span>Арт. '+esc(p.art)+' · '+esc(p.v[r.vi].l)+' · <b>'+money(r.amount)+'</b></span><span class="pill '+(r.done?'ok':'warn')+'">'+(r.done?'Возвращено':'К возврату')+'</span></div>';}).join('')+'</div>';
+}
 
 function renderTabs(){
   var t=$('#tabs'), list;
@@ -245,7 +277,7 @@ function renderTabs(){
     list=[['catalog','Каталог'],['orders','Мои заказы'+(attn?'<span class="badge crit">!</span>':(mine.length?'<span class="badge">'+mine.length+'</span>':''))]];
   } else {
     var n=issueCount();
-    list=[['o-orders','Заказы'+(n?'<span class="badge crit">'+n+'</span>':'')],['o-prods','Товары и наличие'],['o-new','Новый товар']];
+    list=[['o-orders','Заказы'+(n?'<span class="badge crit">'+n+'</span>':'')],['o-prods','Товары и наличие'],['o-ret','Возвраты'+(refundOpen()?'<span class="badge crit">'+refundOpen()+'</span>':'')],['o-new','Новый товар']];
   }
   t.innerHTML=list.map(function(x){return '<button role="tab" data-tab="'+x[0]+'" aria-selected="'+(tab===x[0])+'">'+x[1]+'</button>';}).join('');
 }
@@ -256,7 +288,10 @@ function viewCatalog(){
   if(open.length && open[0].stop-Date.now()<12*H){
     b='<div class="banner"><span aria-hidden="true">⏰</span><span>Скоро стоп: <b>арт. '+esc(open[0].art)+'</b>, '+left(open[0])+'</span></div>';
   }
-  var cards=products.slice().sort(function(a,b){return (isOpen(b)-isOpen(a))||(a.stop-b.stop);}).map(function(p){
+  var present=[];products.forEach(function(p){if(present.indexOf(p.cat)<0)present.push(p.cat);});
+  if(present.indexOf(fCat)<0&&fCat!=='Все')fCat='Все';
+  var chips=present.length>1?'<div class="chips">'+['Все'].concat(present).map(function(c){return '<button class="chip" data-cat="'+esc(c)+'" aria-pressed="'+(fCat===c)+'">'+esc(c)+'</button>';}).join('')+'</div>':'';
+  var cards=products.filter(function(p){return fCat==='Все'||p.cat===fCat;}).sort(function(a,b){return (isOpen(b)-isOpen(a))||(a.stop-b.stop);}).map(function(p){
     var mine=orders.filter(function(o){return isMine(o)&&o.pid===p.id;});
     var m=mine.length?'<div class="mine">✓ Ваш заказ: '+mine.map(function(o){return esc(p.v[o.vi].l)+', р-р '+esc(o.ring)+' × '+o.qty;}).join('; ')+'</div>':'';
     var vl=p.v.map(function(v){
@@ -264,11 +299,11 @@ function viewCatalog(){
     }).join('');
     var anyIn=p.v.some(function(v){return !v.out;});
     return '<article class="card prod">'+tile(p)+'<div class="pbody"><div class="row"><span class="art">Арт. '+esc(p.art)+'</span>'+leftPill(p)+'</div>'+
-      '<div class="pname">'+esc(p.name)+'</div><div class="vlist">'+vl+'</div>'+
+      '<div><div class="cat">'+esc(p.cat)+'</div><div class="pname">'+esc(p.name)+'</div></div><div class="vlist">'+vl+'</div>'+
       '<div class="meta">'+(isOpen(p)?'Стоп '+stopLabel(p):'')+'</div>'+m+
       '<div><button class="btn sm" data-order="'+p.id+'"'+((isOpen(p)&&anyIn)?'':' disabled')+'>'+(isOpen(p)?(anyIn?'Заказать':'Всё разобрали'):'Приём закрыт')+'</button></div></div></article>';
   }).join('');
-  return b+'<div class="grid">'+cards+'</div><p class="hint">Цена без доставки. Карго до вашего города считается после приёмки на складе.</p>';
+  return b+chips+'<div class="grid">'+cards+'</div><p class="hint">Цена без доставки. Карго до вашего города считается после приёмки на складе.</p>';
 }
 
 function stepper(o){
@@ -279,7 +314,7 @@ function stepper(o){
 function viewOrders(){
   var mine=orders.filter(isMine).sort(function(a,b){return b.at-a.at;});
   var who='<div class="card sum" style="padding:12px 14px"><div style="min-width:0"><div class="meta">Заказы для</div><b>'+esc(profile.name)+'</b> <span class="meta">'+fmtPhone(profile.phone)+'</span></div><button class="btn sec sm" data-profile="1">Изменить</button></div>';
-  if(!mine.length) return who+'<div class="card empty">По этому номеру пока нет заказов.<br>Выберите товар в каталоге или укажите другой номер.</div>';
+  if(!mine.length) return who+refundCard()+'<div class="card empty">По этому номеру пока нет заказов.<br>Выберите товар в каталоге или укажите другой номер.</div>';
   var live=mine.filter(function(o){return o.status===0&&o.issue!=='out';});
   var due=live.reduce(function(s,o){return s+oSum(o);},0);
   var allClosed=live.every(function(o){return !isOpen(prod(o.pid));});
@@ -306,7 +341,7 @@ function viewOrders(){
         (canEdit?'<button class="btn sec sm" data-cancel="'+o.id+'">Отменить</button>':'')+'</div>':'')+
       '</article>';
   }).join('');
-  return who+head+'<div class="grid">'+cards+'</div>';
+  return who+refundCard()+head+'<div class="grid">'+cards+'</div>';
 }
 
 function statusPill(o){
@@ -332,7 +367,7 @@ function viewOOrders(){
     '<div class="card kpi'+(ic?' crit':'')+'"><span>Нет в наличии, ждём ответ</span><b>'+ic+'</b></div></div>';
   var selN=Object.keys(selected).length;
   var tools='<div class="tools"><input class="inp" id="fq" type="search" placeholder="Найти по имени или телефону" aria-label="Поиск" value="'+esc(fQ)+'" style="min-width:220px"><select class="inp" id="fProd" aria-label="Товар"><option value="all">Все артикулы</option>'+
-    products.map(function(p){return '<option value="'+p.id+'"'+(fProd===String(p.id)?' selected':'')+'>Арт. '+esc(p.art)+'</option>';}).join('')+'</select>'+
+    products.map(function(p){return '<option value="'+p.id+'"'+(fProd===String(p.id)?' selected':'')+'>Арт. '+esc(p.art)+' · '+esc(p.name)+'</option>';}).join('')+'</select>'+
     '<select class="inp" id="fStatus" aria-label="Статус"><option value="all">Все статусы</option><option value="issue"'+(fStatus==='issue'?' selected':'')+'>Проблемные (нет в наличии)</option>'+
     STATUSES.map(function(s,i){return '<option value="'+i+'"'+(fStatus===String(i)?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
     '<span style="flex:1"></span><button class="btn sec sm" id="copyTsv">Скопировать для таблицы</button></div>';
@@ -342,11 +377,11 @@ function viewOOrders(){
   var body=rows.map(function(o){
     var p=prod(o.pid);
     return '<tr class="'+(selected[o.id]?'sel':'')+'"><td><input type="checkbox" data-sel="'+o.id+'"'+(selected[o.id]?' checked':'')+' aria-label="Выбрать заказ"></td>'+
-      '<td>'+esc(o.who)+'<div class="meta">'+fmtPhone(o.phone)+'</div></td><td><span class="art">'+esc(p.art)+'</span> '+esc(p.v[o.vi].l)+'</td><td>'+esc(o.ring)+'</td><td class="n">'+o.qty+'</td>'+
+      '<td>'+esc(o.who)+'<div class="meta"><a class="wa" href="'+waLink(o.phone)+'" target="_blank" rel="noopener">'+fmtPhone(o.phone)+'</a> · <a class="wa" href="'+waLink(o.phone,msgFor(o))+'" target="_blank" rel="noopener">Написать</a></div></td><td><span class="art">'+esc(p.art)+'</span> '+esc(p.v[o.vi].l)+'<div class="meta">'+esc(p.name)+'</div></td><td>'+esc(o.ring)+'</td><td class="n">'+o.qty+'</td>'+
       '<td class="n">'+money(oSum(o))+'</td><td>'+statusPill(o)+'</td></tr>';
   }).join('');
   return kp+tools+bulk+'<div class="card tablewrap"><table><thead><tr><th><input type="checkbox" id="selAll" aria-label="Выбрать все"'+(allSel?' checked':'')+'></th><th>Участница</th><th>Арт. и вариант</th><th>Размер кольца</th><th class="n">Шт.</th><th class="n">Сумма</th><th>Статус</th></tr></thead><tbody>'+(body||'<tr><td colspan="7" class="empty">Нет заказов по фильтру</td></tr>')+'</tbody></table></div>'+
-    '<p class="hint">Заказы попадают сюда сами, как только участница нажала «Заказать». Переносить из чата ничего не нужно.</p>';
+    '<p class="hint">Заказы попадают сюда сами, как только участница нажала «Заказать». Телефон в таблице это ссылка на WhatsApp: чат откроется даже если номера нет в контактах. «Написать» подставляет готовый текст. Эти ссылки видит только организатор.</p>';
 }
 
 function viewOProds(){
@@ -356,14 +391,28 @@ function viewOProds(){
       return '<div class="ovar'+(v.out?' out':'')+'"><span class="vn">'+esc(v.l)+' · ¥'+v.cny+' · '+money(v.rub)+'</span><span class="meta">заказано '+n+'</span>'+
         '<button class="btn sm '+(v.out?'sec':'danger')+'" data-vout="'+p.id+':'+i+'">'+(v.out?'Вернуть в наличие':'Нет в наличии')+'</button></div>';
     }).join('');
-    return '<div class="card oprod">'+tile(p)+'<div style="min-width:0"><div class="row"><div class="pname">Арт. '+esc(p.art)+' · '+esc(p.name)+'</div>'+leftPill(p)+'</div>'+
+    return '<div class="card oprod">'+tile(p)+'<div style="min-width:0"><div class="row"><div><div class="cat">'+esc(p.cat)+'</div><div class="pname">Арт. '+esc(p.art)+' · '+esc(p.name)+'</div></div>'+leftPill(p)+'</div>'+
       '<div class="meta" style="margin-bottom:8px">Стоп: '+stopLabel(p)+'</div>'+vr+
       '<div class="row" style="margin-top:10px;justify-content:flex-start">'+(isOpen(p)?'<button class="btn sec sm" data-ext="'+p.id+'">+1 день</button><button class="btn sec sm" data-close="'+p.id+'">Закрыть приём</button>':'<button class="btn sec sm" data-reopen="'+p.id+'">Открыть на сутки</button>')+'</div></div></div>';
   }).join('')+'<p class="hint">Если вариант не удалось купить, нажмите «Нет в наличии». Участницы с такими заказами получат уведомление и выберут сами: замену, ожидание или отмену. Писать каждой в личку не нужно.</p>';
 }
 
+function viewORet(){
+  var open=refunds.filter(function(r){return !r.done;}),sumO=open.reduce(function(s,r){return s+r.amount;},0);
+  var sumD=refunds.filter(function(r){return r.done;}).reduce(function(s,r){return s+r.amount;},0);
+  var kp='<div class="kpis"><div class="card kpi'+(open.length?' crit':'')+'"><span>К возврату</span><b>'+money(sumO)+'</b></div><div class="card kpi"><span>Заявок к возврату</span><b>'+open.length+'</b></div><div class="card kpi"><span>Уже возвращено</span><b>'+money(sumD)+'</b></div></div>';
+  var rows=refunds.slice().sort(function(a,b){return (a.done-b.done)||(b.at-a.at);}).map(function(r){var p=prod(r.pid);
+    return '<tr><td>'+esc(r.who)+'<div class="meta"><a class="wa" href="'+waLink(r.phone)+'" target="_blank" rel="noopener">'+fmtPhone(r.phone)+'</a> · <a class="wa" href="'+waLink(r.phone,refundMsg(r)+'')+'" target="_blank" rel="noopener">Написать</a></div></td>'+
+      '<td><span class="art">'+esc(p.art)+'</span> '+esc(p.v[r.vi].l)+'<div class="meta">'+esc(p.name)+', р-р '+esc(r.ring)+' × '+r.qty+'</div></td><td class="n"><b>'+money(r.amount)+'</b></td><td>'+esc(r.reason)+'</td>'+
+      '<td><span class="pill '+(r.done?'ok':'warn')+'">'+(r.done?'Возвращено':'К возврату')+'</span></td><td><button class="btn sm '+(r.done?'sec':'')+'" data-rdone="'+r.id+'">'+(r.done?'Вернуть в список':'Отметить возвращённым')+'</button></td></tr>';
+  }).join('');
+  return kp+'<div class="tools"><span style="flex:1"></span><button class="btn sec sm" id="copyRet">Скопировать для таблицы</button></div><div class="card tablewrap"><table><thead><tr><th>Кому вернуть</th><th>За что</th><th class="n">Сумма</th><th>Причина</th><th>Статус</th><th></th></tr></thead><tbody>'+(rows||'<tr><td colspan="6" class="empty">Возвратов пока нет</td></tr>')+'</tbody></table></div>'+
+    '<p class="hint">Заявка появляется сама, когда участница отменяет оплаченный заказ, выбирает отмену при отсутствии товара или заменяет на более дешёвый вариант. Отметьте «Возвращено», когда отправите деньги, и участница увидит это у себя.</p>';
+}
+
 var SAMPLE='Арт: 122\n107ю - 1500₽ (0.5 карат)\n125ю - 1750₽ (1 карат)\n161ю - 2255₽ (2 карата)\n192ю - 2690₽ (3 карата)\n\nАрт: 115\n107ю - 1500₽ (0.5 карата)\n121ю - 1695₽ (1 карат)\n165ю - 2310₽ (2 карата)\n199ю - 2790₽ (3 карата)\n255ю - 3570₽ (5 карат)';
-var draft={text:SAMPLE,name:'Кольцо с камнем',days:3,items:null,photo:IMG.orig};
+var draft={text:SAMPLE,cat:'Муассаниты',newCat:'',name:'Кольца, набор №1',days:3,items:null,photo:IMG.orig};
+function syncDraft(){var g=function(i){var e=document.getElementById(i);return e?e.value:null;},v;if((v=g('dText'))!==null)draft.text=v;if((v=g('dName'))!==null)draft.name=v;if((v=g('dDays'))!==null)draft.days=+v;if((v=g('dNewCat'))!==null)draft.newCat=v;if(draft.items)document.querySelectorAll('[data-iname]').forEach(function(el){draft.items[+el.dataset.iname].name=el.value;});}
 function round5(n){return Math.round(n/5)*5;}
 function parseText(tx){
   var parts=tx.split(/Арт[:.\s]+(?=\d)/i), items=[];
@@ -376,7 +425,7 @@ function parseText(tx){
       var l=m[3].trim().replace('.',',').replace(/^0,5 карат$/,'0,5 карата');
       v.push(V(l,cny,rub));
     }
-    if(v.length) items.push({art:art,v:v});
+    if(v.length) items.push({art:art,v:v,name:''});
   }
   return items;
 }
@@ -384,7 +433,7 @@ function viewONew(){
   var pv='';
   if(draft.items){
     pv=draft.items.map(function(it){
-      return '<div class="preview"><b>Арт. '+esc(it.art)+'</b><div class="vlist">'+it.v.map(function(v){return '<div class="vrow"><span>'+esc(v.l)+'</span><span class="c">¥'+v.cny+'</span><b>'+money(v.rub)+'</b></div>';}).join('')+'</div></div>';
+      return '<div class="preview"><b>Арт. '+esc(it.art)+'</b><div class="field" style="margin:8px 0"><label class="l" for="in'+it.art+'">Название, чтобы отличать в таблице</label><input class="inp" id="in'+it.art+'" data-iname="'+draft.items.indexOf(it)+'" value="'+esc(it.name)+'" placeholder="Например: набор №1"></div><div class="vlist">'+it.v.map(function(v){return '<div class="vrow"><span>'+esc(v.l)+'</span><span class="c">¥'+v.cny+'</span><b>'+money(v.rub)+'</b></div>';}).join('')+'</div></div>';
     }).join('');
   }
   return '<div class="two"><div class="card" style="padding:16px">'+
@@ -392,7 +441,9 @@ function viewONew(){
     '<div class="field"><label class="l" for="dText">Текст поста, как вы пишете в чат</label><textarea class="inp" id="dText">'+esc(draft.text)+'</textarea>'+
     '<div class="hint">Здесь ваш настоящий пример. В прототипе разбор простой, в рабочей версии его делает ИИ. Если цены в рублях нет, считаем по курсу '+RATE+' ₽ за ¥.</div></div>'+
     '<button class="btn" id="parse">Распознать</button></div>'+
-    '<div class="card" style="padding:16px"><div class="field"><label class="l" for="dName">Название</label><input class="inp" id="dName" value="'+esc(draft.name)+'"></div>'+
+    '<div class="card" style="padding:16px"><div class="field"><label class="l" for="dCat">Категория</label><select class="inp" id="dCat">'+CATS.map(function(c){return '<option value="'+esc(c)+'"'+(draft.cat===c?' selected':'')+'>'+esc(c)+'</option>';}).join('')+'<option value="__new"'+(draft.cat==='__new'?' selected':'')+'>+ Новая категория…</option></select></div>'+
+    (draft.cat==='__new'?'<div class="field"><label class="l" for="dNewCat">Название новой категории</label><input class="inp" id="dNewCat" value="'+esc(draft.newCat)+'" placeholder="Например: Обувь"></div>':'')+
+    '<div class="field"><label class="l" for="dName">Название товара</label><input class="inp" id="dName" value="'+esc(draft.name)+'"><div class="hint">Например: «Кольца, набор №1». Его видят и участницы в каталоге, и вы в таблице. Для каждого артикула ниже можно задать своё.</div></div>'+
     '<div class="field"><label class="l" for="dDays">Стоп через (дней)</label><select class="inp" id="dDays">'+[1,2,3,4,5,7].map(function(d){return '<option'+(draft.days===d?' selected':'')+'>'+d+'</option>';}).join('')+'</select></div>'+
     (draft.items?'<label class="l">Найдено артикулов: '+draft.items.length+'</label>'+pv:'<div class="meta" style="margin-bottom:12px">Нажмите «Распознать», и здесь появятся артикулы с вариантами и ценами.</div>')+
     '<button class="btn" id="publish"'+(draft.items?'':' disabled')+'>Опубликовать в каталог</button></div></div>';
@@ -402,7 +453,7 @@ function render(){
   document.getElementById('wrap').className='wrap'+(role==='O'?' wide':'');
   $('#roleU').setAttribute('aria-pressed',role==='U');$('#roleO').setAttribute('aria-pressed',role==='O');
   renderTabs();
-  $('#view').innerHTML={catalog:viewCatalog,orders:viewOrders,'o-orders':viewOOrders,'o-prods':viewOProds,'o-new':viewONew}[tab]();
+  $('#view').innerHTML={catalog:viewCatalog,orders:viewOrders,'o-orders':viewOOrders,'o-prods':viewOProds,'o-ret':viewORet,'o-new':viewONew}[tab]();
 }
 
 function openSheet(id){var p=prod(id);sheet={mode:'new',p:p,vi:null,ring:null,qty:1,comment:'',name:profile.name,phone:profile.phone};drawSheet();}
@@ -444,6 +495,7 @@ document.addEventListener('click',function(e){
   if(d.zoom){var zp=prod(+d.zoom);$('#zoomLayer').innerHTML='<button class="zoom" data-unzoom="1" aria-label="Закрыть фото"><span>Нажмите, чтобы закрыть</span><img src="'+zp.full+'" alt="Фото товара, арт. '+esc(zp.art)+'"></button>';return;}
   if(d.unzoom){$('#zoomLayer').innerHTML='';return;}
   if(d.tab){tab=d.tab;render();return;}
+  if(d.cat){fCat=d.cat;render();return;}
   if(d.order){openSheet(+d.order);return;}
   if(d.replace){openReplace(+d.replace);return;}
   if(d.profile){openProfile();return;}
@@ -459,8 +511,12 @@ document.addEventListener('click',function(e){
     if(!sheetOk())return;
     var p=sheet.p;
     if(sheet.mode==='replace'){
-      sheet.o.vi=sheet.vi;sheet.o.issue=null;
-      toast('Заказ заменён: '+p.v[sheet.vi].l+'. Организатор увидит это в таблице.');
+      var oo=sheet.o,oldT=oSum(oo),oldVi=oo.vi,msg='Заказ заменён: '+p.v[sheet.vi].l+'. Организатор увидит это в таблице.';
+      oo.vi=sheet.vi;oo.issue=null;
+      var dif=oSum(oo)-oldT;
+      if(oo.status>=1&&dif<0){addRefund(oo,-dif,'Замена на более дешёвый вариант',oldVi);msg+=' Разницу '+money(-dif)+' вернём.';}
+      else if(oo.status>=1&&dif>0){msg+=' Нужно доплатить '+money(dif)+'.';}
+      toast(msg);
     } else {
       profile={name:sheet.name.trim(),phone:sheet.phone};
       addOrder(profile.name,profile.phone,p.id,sheet.vi,sheet.ring,sheet.qty,0,0);
@@ -471,9 +527,11 @@ document.addEventListener('click',function(e){
   }
   if(d.cancel){
     var oc=ord(+d.cancel);var paid=oc.status>=1;
+    if(paid)addRefund(oc,oSum(oc),oc.issue==='out'?'Нет в наличии':'Отмена участницей');
     orders=orders.filter(function(o){return o.id!==oc.id;});
-    toast(paid?'Заказ отменён. Оплату вернём, организатор увидит возврат в списке.':'Заказ отменён');render();return;
+    toast(paid?'Заказ отменён. Возврат '+money(oSum(oc))+' передан организатору, он виден в разделе «Возвраты».':'Заказ отменён');render();return;
   }
+  if(d.rdone){var rf=refunds.filter(function(r){return r.id===+d.rdone;})[0];rf.done=!rf.done;toast(rf.done?'Отмечено: возвращено '+money(rf.amount)+'. Участница увидит это у себя.':'Возврат снова в списке');render();return;}
   if(d.wait){ord(+d.wait).issue='wait';toast('Хорошо, заказ сохранён. Сообщим, когда вариант появится.');render();return;}
   if(d.pay){ord(+d.pay).status=1;toast('Оплата отмечена. Организатор получит уведомление.');render();return;}
   if(d.sel){if(t.checked)selected[d.sel]=1;else delete selected[d.sel];render();return;}
@@ -486,10 +544,16 @@ document.addEventListener('click',function(e){
     selected={};toast('Статус «'+STATUSES[st]+'» у '+n+' поз. Уведомления получат: '+Object.keys(who).length+' уч.');render();return;
   }
   if(t.id==='copyTsv'){
-    var tsv=['Участница\tТелефон\tАрт.\tВариант\tРазмер кольца\tШт.\tСумма, ₽\tСтатус'].concat(orders.map(function(o){var p=prod(o.pid);return [o.who,fmtPhone(o.phone),p.art,p.v[o.vi].l,o.ring,o.qty,oSum(o),o.issue==='out'?'Нет в наличии':(o.issue==='wait'?'Ждёт поступления':STATUSES[o.status])].join('\t');})).join('\n');
+    var tsv=['Участница\tWhatsApp\tКатегория\tТовар\tАрт.\tВариант\tРазмер кольца\tШт.\tСумма, ₽\tСтатус'].concat(orders.map(function(o){var p=prod(o.pid);return [o.who,waLink(o.phone),p.cat,p.name,p.art,p.v[o.vi].l,o.ring,o.qty,oSum(o),o.issue==='out'?'Нет в наличии':(o.issue==='wait'?'Ждёт поступления':STATUSES[o.status])].join('\t');})).join('\n');
     var ok=function(){toast('Скопировано. Вставьте в Google Таблицу или Excel.');};
     var fail=function(){toast('Не удалось скопировать. В рабочей версии таблица выгружается автоматически.');};
     try{navigator.clipboard.writeText(tsv).then(ok,fail);}catch(err){fail();}
+    return;
+  }
+  if(t.id==='copyRet'){
+    var rt=['Кому\tWhatsApp\tАрт.\tВариант\tСумма, ₽\tПричина\tСтатус'].concat(refunds.map(function(r){var p=prod(r.pid);return [r.who,waLink(r.phone),p.art,p.v[r.vi].l,r.amount,r.reason,r.done?'Возвращено':'К возврату'].join('\t');})).join('\n');
+    var ok2=function(){toast('Скопировано. Вставьте в Google Таблицу или Excel.');};
+    try{navigator.clipboard.writeText(rt).then(ok2,function(){toast('Не удалось скопировать.');});}catch(err2){toast('Не удалось скопировать.');}
     return;
   }
   if(d.vout){
@@ -507,30 +571,33 @@ document.addEventListener('click',function(e){
   if(d.close){prod(+d.close).stop=Date.now();toast('Приём по товару закрыт');render();return;}
   if(d.reopen){prod(+d.reopen).stop=Date.now()+D;toast('Приём открыт на сутки');render();return;}
   if(t.id==='parse'){
-    draft.text=$('#dText').value;draft.name=$('#dName').value;draft.days=+$('#dDays').value;
-    draft.items=parseText(draft.text);
+    syncDraft();
+    draft.items=parseText(draft.text);draft.items.forEach(function(it){it.name=draft.name;});
     if(!draft.items.length){draft.items=null;toast('Не нашёл артикулов. Формат: «Арт: 122» и строки «107ю - 1500₽ (0.5 карат)».');}
     else toast('Распознано артикулов: '+draft.items.length+'. Проверьте и опубликуйте.');
     render();return;
   }
   if(t.id==='publish'){
     if(!draft.items) return;
-    var nm=$('#dName').value.trim()||'Товар', days=+$('#dDays').value;
+    syncDraft();
+    var cat=draft.cat==='__new'?(draft.newCat.trim()||'Без категории'):draft.cat, days=draft.days;
+    if(CATS.indexOf(cat)<0)CATS.push(cat);
     draft.items.forEach(function(it){
-      products.push({id:nextId++,art:it.art,name:nm,photo:draft.photo,full:draft.photo,stop:Date.now()+days*D,v:it.v});
+      products.push({id:nextId++,art:it.art,cat:cat,name:(it.name||draft.name).trim()||'Товар',photo:draft.photo,full:draft.photo,stop:Date.now()+days*D,v:it.v});
     });
     var cnt=draft.items.length;
-    draft={text:'',name:'Кольцо с камнем',days:3,items:null,photo:IMG.orig};
-    toast('Опубликовано артикулов: '+cnt+'. Они уже в каталоге у участниц.');tab='o-prods';render();return;
+    draft={text:'',cat:cat,newCat:'',name:'',days:3,items:null,photo:IMG.orig};
+    toast('Опубликовано артикулов: '+cnt+' в категории «'+cat+'». Они уже в каталоге у участниц.');tab='o-prods';render();return;
   }
 });
 document.addEventListener('change',function(e){
   var id=e.target.id;
   if(id==='fProd'){fProd=e.target.value;render();}
   if(id==='fStatus'){fStatus=e.target.value;render();}
+  if(id==='dCat'){syncDraft();draft.cat=e.target.value;render();}
   if(id==='dPhoto'&&e.target.files&&e.target.files[0]){
     var r=new FileReader();
-    r.onload=function(){draft.photo=r.result;draft.text=$('#dText').value;draft.name=$('#dName').value;render();};
+    r.onload=function(){syncDraft();draft.photo=r.result;render();};
     r.readAsDataURL(e.target.files[0]);
   }
 });
@@ -541,6 +608,7 @@ document.addEventListener('input',function(e){
   if(e.target.id==='fq'){fQ=e.target.value;render();var el=$('#fq');el.focus();el.setSelectionRange(fQ.length,fQ.length);}
   if(e.target.id==='dText')draft.text=e.target.value;
   if(e.target.id==='dName')draft.name=e.target.value;
+  if(e.target.id==='dNewCat')draft.newCat=e.target.value;
 });
 document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;var z=$('#zoomLayer');if(z&&z.innerHTML){z.innerHTML='';return;}if(sheet)closeSheet();});
 setInterval(function(){var a=document.activeElement&&document.activeElement.tagName;if(!sheet&&a!=='TEXTAREA'&&a!=='INPUT'&&a!=='SELECT'&&tab!=='o-new')render();},30000);
