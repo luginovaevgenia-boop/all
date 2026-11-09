@@ -391,7 +391,7 @@ function viewOOrders(){
     '<div class="card kpi"><span>Ждёт оплаты</span><b>'+money(unpaid)+'</b></div>'+
     '<div class="card kpi'+(ic?' crit':'')+'"><span>Нет в наличии, ждём ответ</span><b>'+ic+'</b></div></div>';
   var selN=Object.keys(selected).length;
-  var tools='<div class="tools"><input class="inp" id="fq" type="search" placeholder="Найти по имени или телефону" aria-label="Поиск" value="'+esc(fQ)+'" style="min-width:220px"><select class="inp" id="fProd" aria-label="Товар"><option value="all">Все артикулы</option>'+
+  var tools='<div class="tools"><input class="inp" id="fq" type="search" placeholder="Найти по имени или телефону" aria-label="Поиск" value="'+esc(fQ)+'" style="min-width:280px"><select class="inp" id="fProd" aria-label="Товар"><option value="all">Все артикулы</option>'+
     products.map(function(p){return '<option value="'+p.id+'"'+(fProd===String(p.id)?' selected':'')+'>Арт. '+esc(p.art)+' · '+esc(p.name)+'</option>';}).join('')+'</select>'+
     '<select class="inp" id="fStatus" aria-label="Статус"><option value="all">Все статусы</option><option value="issue"'+(fStatus==='issue'?' selected':'')+'>Проблемные (нет в наличии)</option>'+
     STATUSES.map(function(s,i){return '<option value="'+i+'"'+(fStatus===String(i)?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
